@@ -52,26 +52,30 @@ enum Pos
 void imu_callback(const sensor_msgs::Imu::ConstPtr& msg)
 {
     Eigen::Quaterniond quat(msg->orientation.w, msg->orientation.x, msg->orientation.y, msg->orientation.z);
+    Eigen::Matrix3d direction;
+    direction << 1, 0, 0, 0, -1, 0, 0, 0, -1;
     quaternion_ = quat;
 
     // Angular Velocity [rad/s]
-    angular_velocity_(X) = msg->angular_velocity.x; 
-    angular_velocity_(Y) = msg->angular_velocity.y;
-    angular_velocity_(Z) = msg->angular_velocity.z;
+    angular_velocity_(X) = msg->angular_velocity.x;
+    angular_velocity_(Y) = - msg->angular_velocity.y;
+    angular_velocity_(Z) = - msg->angular_velocity.z;
 
     // Linear Accceleration [m/s^2]
     linear_acceleration_(X) = msg->linear_acceleration.x;
-    linear_acceleration_(Y) = msg->linear_acceleration.y;
-    linear_acceleration_(Z) = msg->linear_acceleration.z;
+    linear_acceleration_(Y) = - msg->linear_acceleration.y;
+    linear_acceleration_(Z) = - msg->linear_acceleration.z;
 
     // Rotation Matrix
-    rotation_matrix_ = quat.toRotationMatrix();
+    rotation_matrix_ = direction * quat.toRotationMatrix();
 
     // Euler Angle [rad]
     orientation_(Y) = std::asin(-rotation_matrix_(2, 0));
     if (std::cos(orientation_(1)) != 0) { // Check for edge cases
         orientation_(X) = std::atan2(rotation_matrix_(2, 1), rotation_matrix_(2, 2));
         orientation_(Z) = std::atan2(rotation_matrix_(1, 0), rotation_matrix_(0, 0));
+        if(orientation_(X) > 0) orientation_(X) = orientation_(X) - 3.141592;
+        else orientation_(X) = orientation_(X) + 3.141592;
     } 
     else { // Gimbal lock case (cos(pitch) == 0),  In this case, we can set roll to 0 and calculate yaw differently
         orientation_(X) = 0.0;
